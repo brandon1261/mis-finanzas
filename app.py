@@ -1,8 +1,8 @@
 import os
 import json
+import tempfile
 import requests
 from flask import Flask, request
-from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 import gspread
 from google.oauth2.service_account import Credentials
@@ -10,23 +10,23 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# ============================================================
-# CONFIGURACIÓN - Completá estos datos
-# ============================================================
-GEMINI_API_KEY = "AQ.Ab8RN6KX6OwfAMwZE8sveZH2dHkVzzHgwnswPDbFug_Tc6mbvg"
-TWILIO_ACCOUNT_SID = "AC874fae42c93cc8ae5c1cab13576de6c0"
-TWILIO_AUTH_TOKEN = "619e308f13603ee7c9c85f4c57a2ce84"
+# Lee todo desde variables de entorno (configuradas en Render)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
 GOOGLE_SHEET_ID = "1om_6E7m6KB63oKGlnxwCsr4Q9812i5b_t79fmigFh9k"
-CREDENTIALS_FILE = "credenciales.json"  # El archivo JSON que descargaste
-# ============================================================
+GOOGLE_CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS")
 
 def conectar_sheets():
-    """Conecta con Google Sheets"""
+    """Conecta con Google Sheets usando credenciales desde variable de entorno"""
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scopes)
+    
+    # Carga las credenciales desde la variable de entorno
+    creds_dict = json.loads(GOOGLE_CREDENTIALS_JSON)
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1
     return sheet
@@ -40,7 +40,7 @@ Analizá este mensaje: "{mensaje}"
 
 Extraé la información y respondé ÚNICAMENTE con un JSON válido con este formato exacto:
 {{
-  "es_financiero": true/false,
+  "es_financiero": true,
   "tipo": "gasto" o "ingreso",
   "monto": número (solo el número, sin símbolos),
   "categoria": "una de estas: alimentación, transporte, servicios, salud, entretenimiento, ropa, trabajo, transferencia, otro",
@@ -82,9 +82,7 @@ Ejemplos:
 def guardar_en_sheets(datos):
     """Guarda el registro en Google Sheets"""
     sheet = conectar_sheets()
-    
     fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-    
     fila = [
         fecha,
         datos["tipo"].upper(),
@@ -93,7 +91,6 @@ def guardar_en_sheets(datos):
         datos["metodo"],
         datos["descripcion"]
     ]
-    
     sheet.append_row(fila)
 
 def obtener_resumen():
@@ -121,7 +118,6 @@ def obtener_resumen():
 def webhook():
     """Recibe los mensajes de WhatsApp via Twilio"""
     mensaje = request.form.get("Body", "").strip()
-    numero_origen = request.form.get("From", "")
     
     resp = MessagingResponse()
     
@@ -132,17 +128,14 @@ def webhook():
         return str(resp)
     
     try:
-        # Analizar el mensaje con Gemini
         datos = analizar_mensaje_con_gemini(mensaje)
         
         if not datos.get("es_financiero"):
             resp.message("No entendí eso como un gasto o ingreso. Contame algo como:\n'gasté 500 en comida'\n'me depositaron 3000 de sueldo'\n\nO escribí *resumen* para ver tu balance 📊")
             return str(resp)
         
-        # Guardar en Google Sheets
         guardar_en_sheets(datos)
         
-        # Responder confirmación
         emoji = "💸" if datos["tipo"] == "gasto" else "💰"
         tipo_texto = "Gasto" if datos["tipo"] == "gasto" else "Ingreso"
         
