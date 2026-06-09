@@ -9,7 +9,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 GOOGLE_SHEET_ID = "1om_6E7m6KB63oKGlnxwCsr4Q9812i5b_t79fmigFh9k"
 GOOGLE_CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS")
 
@@ -24,39 +24,38 @@ def conectar_sheets():
     sheet = client.open_by_key(GOOGLE_SHEET_ID).sheet1
     return sheet
 
-def analizar_mensaje_con_gemini(mensaje):
-    prompt = f"""Eres un asistente que analiza mensajes de gastos e ingresos personales.
-    
-Analizá este mensaje: "{mensaje}"
+def analizar_mensaje(mensaje):
+    prompt = f"""Analizá este mensaje de finanzas personales: "{mensaje}"
 
-Respondé ÚNICAMENTE con un JSON válido, sin markdown, sin explicaciones:
-{{"es_financiero": true, "tipo": "gasto o ingreso", "monto": 0, "categoria": "alimentación/transporte/servicios/salud/entretenimiento/ropa/trabajo/transferencia/otro", "metodo": "efectivo/transferencia/tarjeta/desconocido", "descripcion": "descripcion breve"}}
+Respondé ÚNICAMENTE con JSON válido, sin markdown ni explicaciones:
+{{"es_financiero": true, "tipo": "gasto", "monto": 500, "categoria": "alimentación", "metodo": "efectivo", "descripcion": "comida delivery"}}
 
-Si NO es sobre gastos o ingresos:
-{{"es_financiero": false}}"""
+Campos:
+- tipo: "gasto" o "ingreso"
+- monto: solo el número
+- categoria: alimentación/transporte/servicios/salud/entretenimiento/ropa/trabajo/otro
+- metodo: efectivo/transferencia/tarjeta/desconocido
 
-    # Intentar con gemini-2.0-flash primero, luego gemini-1.5-flash
-    modelos = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.0-pro"]
+Si NO es sobre dinero: {{"es_financiero": false}}"""
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "meta-llama/llama-3.1-8b-instruct:free",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1
+        },
+        timeout=15
+    )
     
-    for modelo in modelos:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={GEMINI_API_KEY}"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.1}
-            }
-            response = requests.post(url, json=payload, timeout=10)
-            result = response.json()
-            
-            if "candidates" in result:
-                texto = result["candidates"][0]["content"]["parts"][0]["text"]
-                texto = texto.strip().replace("```json", "").replace("```", "").strip()
-                return json.loads(texto)
-        except Exception as e:
-            print(f"Error con modelo {modelo}: {e}")
-            continue
-    
-    raise Exception("No se pudo conectar con Gemini")
+    result = response.json()
+    texto = result["choices"][0]["message"]["content"]
+    texto = texto.strip().replace("```json", "").replace("```", "").strip()
+    return json.loads(texto)
 
 def guardar_en_sheets(datos):
     sheet = conectar_sheets()
@@ -99,7 +98,7 @@ def webhook():
         return str(resp)
     
     try:
-        datos = analizar_mensaje_con_gemini(mensaje)
+        datos = analizar_mensaje(mensaje)
         
         if not datos.get("es_financiero"):
             resp.message("No entendí eso como un gasto o ingreso. Contame algo como:\n'gasté 500 en comida'\n'me depositaron 3000 de sueldo'\n\nO escribí *resumen* para ver tu balance 📊")
