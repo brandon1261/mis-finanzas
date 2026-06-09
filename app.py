@@ -77,7 +77,7 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
 
 def guardar_en_sheets(datos):
     sheet = conectar_sheets()
-    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+    fecha = datetime.now().strftime("%d/%m/%Y")
     fila = [
         fecha,
         datos["tipo"].upper(),
