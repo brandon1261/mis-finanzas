@@ -42,7 +42,9 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
         "https://openrouter.ai/api/v1/chat/completions",
         headers={
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://mis-finanzas-xu5y.onrender.com",
+            "X-Title": "Mis Finanzas"
         },
         json={
             "model": "deepseek/deepseek-chat-v3-0324:free",
@@ -53,7 +55,16 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
     )
     
     result = response.json()
-    texto = result["choices"][0]["message"]["content"]
+    print(f"OpenRouter response: {result}")  # Para debug
+    
+    # Manejar diferentes formatos de respuesta
+    if "choices" in result:
+        texto = result["choices"][0]["message"]["content"]
+    elif "error" in result:
+        raise Exception(f"OpenRouter error: {result['error']}")
+    else:
+        raise Exception(f"Respuesta inesperada: {result}")
+    
     texto = texto.strip().replace("```json", "").replace("```", "").strip()
     return json.loads(texto)
 
@@ -119,8 +130,8 @@ def webhook():
 Escribí *resumen* para ver tu balance 📊""")
         
     except Exception as e:
-        print(f"Error: {e}")
-        resp.message("Hubo un error procesando tu mensaje. Intentá de nuevo 🙏")
+        print(f"Error completo: {e}")
+        resp.message(f"Error: {e}")  # Temporal para ver el error exacto
     
     return str(resp)
 
