@@ -51,7 +51,7 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1
         },
-        timeout=15
+        timeout=25
     )
     
     result = response.json()
