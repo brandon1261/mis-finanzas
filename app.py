@@ -47,7 +47,7 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
             "X-Title": "Mis Finanzas"
         },
         json={
-            "model": "deepseek/deepseek-chat-v3-0324:free",
+            "model": "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1
         },
