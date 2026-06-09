@@ -45,7 +45,7 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
             "Content-Type": "application/json"
         },
         json={
-            "model": "meta-llama/llama-3.1-8b-instruct:free",
+            "model": "google/gemma-3-4b-it:free",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1
         },
