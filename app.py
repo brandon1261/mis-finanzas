@@ -47,7 +47,7 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
             "X-Title": "Mis Finanzas"
         },
         json={
-            "model": "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
+            "model": "openai/gpt-oss-120b:free",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1
         },
