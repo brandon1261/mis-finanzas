@@ -66,7 +66,10 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
         raise Exception(f"Respuesta inesperada: {result}")
     
     texto = texto.strip().replace("```json", "").replace("```", "").strip()
-    return json.loads(texto)
+    data = json.loads(texto)
+    if "descripcion" not in data:
+        data["descripcion"] = data.get("categoria", "sin descripción")
+    return data
 
 def guardar_en_sheets(datos):
     sheet = conectar_sheets()
