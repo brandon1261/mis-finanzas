@@ -45,7 +45,7 @@ Si NO es sobre dinero: {{"es_financiero": false}}"""
             "Content-Type": "application/json"
         },
         json={
-            "model": "google/gemma-3-4b-it:free",
+            "model": "deepseek/deepseek-chat-v3-0324:free",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1
         },
